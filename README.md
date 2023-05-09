@@ -23,11 +23,11 @@ Part-1 - Implementation of fragmented hybrid cloud framework
 
 ### Editing variable files and create symlink.
 
-1. In home folder, please change the variables mentioned in config file. Create symlink for config file in each folder. For example:
+1. In home folder, please change the variables mentioned in **config** file. Create symlink for **config** file in each folder. For example:
     ```sh
     ln –s FragmantedHybridCloud/config 01-wireguard-config/config 
     ```
-2. Edit CLUSTER-NODES file and create symlink in each folder.
+2. Edit **CLUSTER-NODES** file and create symlink in each folder.
 
 ### Mesh network creation
 1. Installation of wireguard on all VMs and mesh network creation will be done by running command:
