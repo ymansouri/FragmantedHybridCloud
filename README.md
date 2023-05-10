@@ -1,4 +1,4 @@
-# FragmantedHybridCloud
+# FragmentedHybridCloud
 * This project helps to design and implement a layered fragmented cloud framework in which a set of Linux-based tools enables us to create a mesh network,control latency and traffic, and handle network accessibility.
 * Evaluate the impact of time-varying latency and bandwidth on distributed databases performance.
 * Measure the impact of removing/adding computing nodes at application levels on the performance of databases.
