@@ -14,6 +14,7 @@ ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
 echo ${ALL_DESTINATIONS}
 
 # Step 1: Install tinc on all nodes
+./cpscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "tinc/tinc_1.1~pre18-1_amd64.deb"
 ./runscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "tinc/tinc-installation.sh"
 
 
