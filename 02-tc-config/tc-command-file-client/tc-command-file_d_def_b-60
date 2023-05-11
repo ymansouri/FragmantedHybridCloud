@@ -1,0 +1,23 @@
+/usr/sbin/tc qdisc add dev ens3 root handle 1602: htb default 1
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:1 htb rate 32000000.0kbit
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:170 htb rate 61000.0Kbit ceil 61000.0Kbit burst 7625.0KB cburst 7625.0KB
+/usr/sbin/tc qdisc add dev ens3 parent 1602:170 handle 207f: netem
+/usr/sbin/tc filter add dev ens3 protocol ip parent 1602: prio 5 u32 match ip dst 10.0.17.5/32 match ip src 0.0.0.0/0 flowid 1602:170
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:116 htb rate 66000.0Kbit ceil 66000.0Kbit burst 8250.0KB cburst 8250.0KB
+/usr/sbin/tc qdisc add dev ens3 parent 1602:116 handle 2d8b: netem
+/usr/sbin/tc filter add dev ens3 protocol ip parent 1602: prio 5 u32 match ip dst 10.0.17.3/32 match ip src 0.0.0.0/0 flowid 1602:116
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:124 htb rate 101000.0Kbit ceil 101000.0Kbit burst 12625.0KB cburst 12625.0KB
+/usr/sbin/tc qdisc add dev ens3 parent 1602:124 handle 25d8: netem
+/usr/sbin/tc filter add dev ens3 protocol ip parent 1602: prio 5 u32 match ip dst 10.0.17.6/32 match ip src 0.0.0.0/0 flowid 1602:124
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:12 htb rate 194000.0Kbit ceil 194000.0Kbit burst 24250.0KB cburst 24250.0KB
+/usr/sbin/tc qdisc add dev ens3 parent 1602:12 handle 210b: netem
+/usr/sbin/tc filter add dev ens3 protocol ip parent 1602: prio 5 u32 match ip dst 10.0.17.21/32 match ip src 0.0.0.0/0 flowid 1602:12
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:4 htb rate 149000.0Kbit ceil 149000.0Kbit burst 18625.0KB cburst 18625.0KB
+/usr/sbin/tc qdisc add dev ens3 parent 1602:4 handle 263d: netem delay 64.0ms
+/usr/sbin/tc filter add dev ens3 protocol ip parent 1602: prio 5 u32 match ip dst 10.0.17.20/32 match ip src 0.0.0.0/0 flowid 1602:4
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:146 htb rate 108000.0Kbit ceil 108000.0Kbit burst 13500.0KB cburst 13500.0KB
+/usr/sbin/tc qdisc add dev ens3 parent 1602:146 handle 206e: netem delay 81.0ms
+/usr/sbin/tc filter add dev ens3 protocol ip parent 1602: prio 5 u32 match ip dst 10.0.17.18/32 match ip src 0.0.0.0/0 flowid 1602:146
+/usr/sbin/tc class add dev ens3 parent 1602: classid 1602:74 htb rate 44000.0Kbit ceil 44000.0Kbit burst 5500.0KB cburst 5500.0KB
+/usr/sbin/tc qdisc add dev ens3 parent 1602:74 handle 2703: netem delay 223.0ms
+/usr/sbin/tc filter add dev ens3 protocol ip parent 1602: prio 5 u32 match ip dst 10.0.17.7/32 match ip src 0.0.0.0/0 flowid 1602:74

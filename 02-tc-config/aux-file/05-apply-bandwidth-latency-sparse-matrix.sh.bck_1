@@ -1,0 +1,134 @@
+#!/bin/bash
+. config
+
+
+
+IFS=,$'\n' read -d '' -r -a public_ip_arr < ${PUBLIC_IPS_FILE}
+public_ip_arr=(${public_ip_arr})
+
+IFS=,$'\n' read -d '' -r -a private_ip_arr < ${PRIVATE_IPS_FILE}
+private_ip_arr=(${private_ip_arr})
+
+VM_NUMBER=$(echo ${public_ip_arr[@]} | wc -w)
+
+mesh_network_cnnection_number=$(cat  ${MESH_NETWORK_MATRIX_FILE})
+#echo ${mesh_network_cnnection_number}
+
+
+#$1: source index in latency matrix  $2: destination index in latency matrix
+function get_default_latency () {
+  sed "${1}q;d" ${LATENCY_FILE} | cut -f $2 -d","
+}
+
+
+#$1: source index in bandwidth matrix  $2: destination index bandwidth matrix
+function get_default_bandwidth () {
+ sed "${1}q;d" ${BANDWIDTH_FILE} | cut -f $2 -d","
+}
+
+# This function sets latency to links between two nodes based on the corresponding default latnecy 
+# $1" source node index in latency matrix, $2: destination node index in latency matrix, and $3 the wg index between two nodes
+function set_latency () {
+    WG_INDEX=$3
+    echo ${WG_INDEX}
+    DEFAULT_LATENCY=$(sed "${1}q;d" ${LATENCY_FILE} | cut -f $2 -d",")
+    echo ${DEFAULT_LATENCY}
+
+
+    if (( ${WG_INDEX} % 2 == 0 ))
+    then
+         ASSIGNED_LATENCY=$((${DEFAULT_LATENCY} - (( ${DEFAULT_LATENCY} / ${WG_INDEX} ))))
+    else
+         WG_INDEX=$((${WG_INDEX}+1))
+         ASSIGNED_LATENCY=$((${DEFAULT_LATENCY} + (( ${DEFAULT_LATENCY} / ${WG_INDEX} ))))
+
+    fi
+    echo ${ASSIGNED_LATENCY}
+}
+
+
+# This function sets bandwidth to links between two nodes based on the corresponding default bandwidth
+# $1" source node index in bandwidth matrix, $2: destination node index in bandwidth matrix, and $3 the wg index between two nodes
+function set_bandwidth () {
+    WG_INDEX=$3
+    #echo ${WG_INDEX}
+    DEFAULT_BANDWIDTH=$(sed "${1}q;d" ${BANDWIDTH_FILE} | cut -f $2 -d",")
+    #echo ${DEFAULT_BANDWIDTH}
+    if (( ${WG_INDEX} % 2 == 0 ))
+    then
+         ASSIGNED_BANDWIDTH=$((${DEFAULT_BANDWIDTH} - (( ${DEFAULT_BANDWIDTH} / ${WG_INDEX} ))))
+    else
+         WG_INDEX=$((${WG_INDEX}+1))
+         ASSIGNED_BANDWIDTH=$((${DEFAULT_BANDWIDTH} + (( ${DEFAULT_BANDWIDTH} / ${WG_INDEX} ))))
+
+    fi
+    echo ${ASSIGNED_BANDWIDTH}
+}
+
+#======================================= 
+
+# This function sets a random value between 1 and  default latency  
+# $1" source node index in latency matrix, $2: destination node index in latency matrix, and $3  assigns value B(bandwidth) or L(latency) 
+function set_random_latency_bandwidth () {
+    VALUE_TYPE=$3
+    RANDOM=20 # This is seed value for random number to generate a fixed random number
+    echo value_type: ${VALUE_TYPE}
+    if (( "${VALUE_TYPE}"=="B" ))
+    then
+          DEFAULT_VALUE=$(sed "${1}q;d" ${BANDWIDTH_FILE} | cut -f $2 -d",")
+          echo DEFAULT_BANDWIDTH: ${DEFAULT_VALUE}
+   else
+          DEFAULT_VALUE=$(sed "${1}q;d" ${LATENCY_FILE} | cut -f $2 -d",")
+          echo DEFAULT_LATENCY: ${DEFAULT_VALUE}
+   fi
+      ASSIGNED_VALUE=$(( ( RANDOM % ${DEFAULT_VALUE} )  + 1 ))
+      echo ASSIGNED_VALUE: ${ASSIGNED_VALUE}
+}
+
+
+set_random_latency_bandwidth 3 1 L
+
+
+exit
+
+
+#rm tc-command-file
+
+WG_CONNECTION_INDEX=0
+
+
+# Apply TC rules on each node
+
+for SOUR_VM_INDEX in `seq 1 1 ${VM_NUMBER}`
+do
+
+        echo SOURCE_VM_INDEX: ${SOUR_VM_INDEX}
+        SOUR_VM_CONN_NUMBER=$(echo  ${mesh_network_cnnection_number} | cut -f ${SOUR_VM_INDEX} -d ' ')
+        PUBLIC_IP=$(echo ${public_ip_arr[@]} | cut -f ${SOUR_VM_INDEX} -d ' ')       
+        APPLIED_RULES_WG_CONNECTINONS=0
+        for DEST_VM_INDEX in `seq 1 1 ${VM_NUMBER}` 
+        do
+
+                   CURRENT_WG_COONECTION_NUMBER=$(echo ${SOUR_VM_CONN_NUMBER} | cut -f ${DEST_VM_INDEX} -d ',')
+                   echo connection_number: ${CURRENT_WG_COONECTION_NUMBER}
+                  if [[ $SOUR_VM_INDEX != $DEST_VM_INDEX  ]]
+                   then
+
+                       for (( wg_connect_index=${APPLIED_RULES_WG_CONNECTINONS}; wg_connect_index<$[${CURRENT_WG_COONECTION_NUMBER}+${APPLIED_RULES_WG_CONNECTINONS}]; wg_connect_index++)) 
+                       do   
+                             if (${wg_connect_index}==0)then
+                                  echo ssh  -o StrictHostKeyChecking=no -i $SSH_KEY_FILE $VM_USERNAME@${PUBLIC_IP} "sudo tcset ${MESH_NETWORK_INTERFACE}${wg_connect_index} --rate $(get_default_bandwidth ${SOUR_VM_INDEX} ${DEST_VM_INDEX})Mbit/s --delay $(get_default_latency ${SOUR_VM_INDEX} ${DEST_VM_INDEX})ms "
+                            elif
+
+                                   echo ssh  -o StrictHostKeyChecking=no -i $SSH_KEY_FILE $VM_USERNAME@${PUBLIC_IP} "sudo tcset ${MESH_NETWORK_INTERFACE}${wg_connect_index} --rate $(get_bandwidth ${SOUR_VM_INDEX} ${DEST_VM_INDEX})Mbit/s --delay $(get_latency ${SOUR_VM_INDEX} ${DEST_VM_INDEX})ms "
+                       done
+                   fi
+
+                   APPLIED_RULES_WG_CONNECTINONS=$((${CURRENT_WG_COONECTION_NUMBER}+${APPLIED_RULES_WG_CONNECTINONS}))
+        done
+done
+
+
+
+
+

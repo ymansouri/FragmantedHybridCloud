@@ -1,0 +1,17 @@
+{
+    "ens3": {
+        "outgoing": {
+            "dst-network=10.0.17.12/32, protocol=ip": {
+                "filter_id": "800::800",
+                "delay": "6ms",
+                "rate": "44Mbps"
+            },
+            "dst-network=10.0.17.9/32, protocol=ip": {
+                "filter_id": "800::801",
+                "delay": "7ms",
+                "rate": "35Mbps"
+            }
+        },
+        "incoming": {}
+    }
+}

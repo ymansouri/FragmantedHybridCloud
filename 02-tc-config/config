@@ -1,0 +1,114 @@
+# Parameters for fragmented hybrid cloud.
+
+########################################################
+
+# Please change and review all the values according to your environment
+
+
+########################################################
+
+#************* Parameters for access VMs (General parameters)***********
+
+VM_USERNAME=ubuntu
+#SSH_KEY_FILE="~/.ssh/id_rsa"
+IP_FOLDER="/home/ubuntu/IPs"
+HOME_FOLDER="~"
+SSH_KEY_FILE="~/fragmanted-cloud/git-frag-code/cluster_id_rsa"
+#Please provide the list of ips including master, slaves (exclude client). Please find example of each in HOME.
+
+PUBLIC_IPS_FILE="${IP_FOLDER}/publicips"
+PRIVATE_IPS_FILE="${IP_FOLDER}/privateips"
+PRIVATE_IPS_SSH_FILE="${IP_FOLDER}/privateips-ens3"
+
+#Please provide all list of ips including master, slaves, client. Please find example of each in IPs folder.
+PUBLIC_IPS_FILE_TCSET="${IP_FOLDER}/publicips_tcset"
+PRIVATE_IPS_FILE_TCSET="${IP_FOLDER}/privateips_tcset"
+
+PRIVATE_NETWORK_INTERFACE=ens3
+
+
+#******************* Parameters for mesh network ************************
+
+WG_SUBNET=10.10.120.0/24
+WG_PORT=51823
+WG_CONNECTION_MAX_NUMBER=3
+
+# The value of latency and bandwidth for mesh links is detemined between base value (e.g., 20) and teh value of latency and bandwidth observed in real environment between DCs.   
+
+MESH_NET_BASE_BANDLAT_VALUE=20 
+RANDOM_SEED=20
+
+#Parameters for tcconfig
+#ens3 default value of network interface in OpenStack and wg for wireguard tunnle
+NETWORK_INTERFACE=ens3 
+MESH_NETWORK_INTERFACE=wg
+
+# Change path here for default files directory
+PATH_PREFIX="${HOME_FOLDER}"/FragmantedHybridCloud/02-tc-config/default-files
+
+# These two files represent actual bandwidth and latency between 8 datacenters 
+
+BANDWIDTH_FILE=${PATH_PREFIX}/bandwidth_d_def.csv
+#BANDWIDTH_FILE=${PATH_PREFIX}/bandwidth_default.csv
+#LATENCY_FILE=${PATH_PREFIX}/latency_def.csv
+LATENCY_FILE=${PATH_PREFIX}/latency_d_def.csv
+PACKETLOSS_FILE=${PATH_PREFIX}/packetloss.csv
+MESH_NETWORK_MATRIX_LINK_NUMBER_FILE=${PATH_PREFIX}/mesh_network_link_number.csv
+
+MESH_NETWORK_CONNECTED_LINKS_FILE=${PATH_PREFIX}/mesh_network_connected_links.csv
+MESH_NETWORK_NOCONNECTED_LINKS_FILE=${PATH_PREFIX}/mesh_network_nonconnected_links.csv
+
+ASYM_MESH_BANDWIDTH_FILE=${PATH_PREFIX}/asym_mesh_bandwidth.csv
+ASYM_MESH_LATENCY_FILE=${PATH_PREFIX}/asym_mesh_latency.csv
+
+
+
+#********************** Parameters for tinc*******************************
+
+# The name of VPN between server and client
+VPN_NAME=newvpn
+# the prefix of interface in tinc, which can be tun0, tun1, ....
+IF_PREFIX=tun-vpn
+# Setting on server side
+TINC_SUBNET=10.0.0.0/24
+SERVER_SUBNET=10.0.0.1/32
+
+
+#****************************** parameters for DBs***************************
+PUBLIC_IPS_FILE="${IP_FOLDER}/publicips"
+PRIVATE_IPS_FILE="${IP_FOLDER}/privateips"
+
+#******************************* parameters for experiments ****************************
+PRIVATE_NODES_NUMBER=8
+PUBLIC_NODES_NUMBER=0
+
+
+# Singapore DC in cluster: we have two datacenter in our experiments: one as worker/client and one as data node
+
+# Singapore DC as worker/client
+#WORKER_IP=10.33.0.54
+WORKER_IP=
+
+# Singapor DC as data node
+#WORKER_IP_IN_CLUSTER=10.33.184.54
+WORKER_IP_IN_CLUSTER=
+
+#RESULTS=all-results
+RESULTS=
+
+# Change path for home directory
+PATH_PREFIX_FOR_EXPERIMENT="${HOME_FOLDER}/FragmantedHybridCloud/"
+
+#FOR REFERENCE
+               
+#links_cut_string="0 0,0 1,0 2,0 4,0 5,0 7,0 8,0 9,0 10,0 11,0 13, ==>11
+#                  1 2,1 3,1 4,1 5,1 6,1 7,1 8,1 9,1 11,1 13,1 14,1 15,==12>
+#                  2 4,2 5,2 6,2 8,2 9,2 10,2 11,2 12,==>8
+#                  3 8,3 9,3 13,3 10,3 12,3 14,==>6
+#                  4 9,4 10,4 11,4 12,4 14,4 15,==>6
+#                  5 11,5 12,5 13,5 14,==>3
+#                  6 13,6 14,6 15"==>3
+
+
+links_cut_string="0 0,0 1,0 2,0 4,0 5,0 7,0 8,0 9,0 10,0 11,0 13,1 2,1 3,1 4,1 5,1 6,1 7,1 8,1 9,1 11,1 13,1 14,1 15,2 4,2 5,2 6,2 8,2 9,2 10,2 11,2 12,3 8,3 9,3 13,3 10,3 12,3 14,4 9,4 10,4 11,4 12,4 14,4 15,5 11,5 12,5 13,5 14,6 13,6 14,6 15"
+#links_cut_string="0 1,0 2,0 4,0 5,0 7,0 8,0 10"
