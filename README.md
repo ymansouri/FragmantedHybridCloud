@@ -20,6 +20,7 @@ Part-1 - Implementation of fragmented hybrid cloud framework
 
 1. Create a cluster of virtual machines using private cloud or public cloud (Microsoft Azure/AWS)
 2. Install and setup databases (MongoDB, Cassandra, Redis, MySQl)
+3. Install and build YCSB for all the databases only on client nodes following https://github.com/brianfrankcooper/YCSB
 
 ### Editing variable files and create symlink.
 
@@ -107,7 +108,7 @@ Part-2 - Running experimental scenarios mentioned in the paper
 
 Assuming that, Part-1 has been successfully finished and verified.
 
-1. Run the following command to run the whole experiments when latency changes from X to 5X.
+1. Run the following command to run the whole experiments when latency changes from 5X to X, that is, latency-20.csv (4X)  latency-40.csv (3X)  latency-60.csv (2X)  latency-80.csv (X) latency_def.csv (5X)
     ```sh
     cd 04-experiment-scenarios
     ./frag-experiments-scenario-run <DB_NAME>
