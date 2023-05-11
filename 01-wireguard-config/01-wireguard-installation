@@ -1,0 +1,69 @@
+#!/bin/bash
+
+####################################
+
+# Install wireguard and enable autostart through systemd service (but does not start it)
+
+####################################
+
+. config
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+
+ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
+echo ${ALL_DESTINATIONS}
+
+# Step 1: create directory /etc/wireguard on each vm 
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+  SSH_HOST=${DESTINATION%:*}
+  echo ${SSH_HOST}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+  ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "sudo mkdir -p /etc/wireguard"
+done
+unset IFS
+
+#  Step 2: Wireguard installation
+./runscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "wireguard/wireGuardInstallation.sh"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

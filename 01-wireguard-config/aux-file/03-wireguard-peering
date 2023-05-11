@@ -1,0 +1,90 @@
+#!/bin/bash
+
+# Install tinc and enable autostart through systemd service (but does not start it)
+# Configure wireguard on both server and client: this script receives two publc ips via a file in config file or as a string "SERVER_IP CLIENT_IP"
+#Server/Donor, Client:Consumer
+
+. config
+
+# S1: SERVER_IP CLIENT_IP
+#if [[ "$1" == "" ]]
+#then
+#  echo "Usage: $0 <PUBLIC_IPS>"
+#  exit
+#fi
+
+
+
+function hosts2dests {
+  #$1 list of hosts
+  #$2 username
+  DESTS=
+  for HOST in $1
+  do
+    DESTS=${DESTS},${2}@${HOST}:/home/${2}
+  done
+  echo ${DESTS#,}
+}
+
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+echo $PUBLIC_IPS
+
+
+ALL_DESTINATIONS=$(hosts2dests "${PUBLIC_IPS}" ${VM_USERNAME})
+DEST_SERVER=$(echo ${ALL_DESTINATIONS}| cut -f 1 -d ',')
+DEST_CLIENT=$(echo ${ALL_DESTINATIONS}| cut -f 2 -d ',')
+
+SSH_SERVER=${DEST_SERVER%:*}
+SSH_CLIENT=${DEST_CLIENT%:*}
+
+
+./wireguard/.sh ${SSH_SERVER#*@} ${SSH_CLIENT#*@} ${SSH_CLIENT#*@}/32
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

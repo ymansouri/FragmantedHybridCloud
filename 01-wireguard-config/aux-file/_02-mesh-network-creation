@@ -1,0 +1,168 @@
+#!/bin/bash
+
+#Step 1 creates a mesh network in which the number of links is randomly determinded (between 1 and WG_CONNECTION_MAX_NUMBER). In STEP 2, we use WireGUard to create links based on the 
+# defined MESH network in step1.
+. config
+
+
+#STEP1: CREATING MATRIX AS MESH NETWORK
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+echo PUBLIC_IPS: ${PUBLIC_IPS}
+
+PRIVATE_IPS=$(cat ${PRIVATE_IPS_FILE})
+echo PRIVATE_IPS: ${PRIVATE_IPS}
+
+NODE_NUMBER=$(echo ${PUBLIC_IPS}| wc -w)
+echo NODES_NUMBER: $NODE_NUMBER
+
+# Mesh network list to creat a partial mesh network using wireguard
+MESH_NETWORK_LIST=
+
+# Mesh network matrix based in the MESH_NETWORK_LIST for further process
+declare -A MESH_NETWORK_MATRIX
+
+for ((i=1;i<=${NODE_NUMBER};i++)) do
+    for ((j=1;j<=${NODE_NUMBER};j++)) do
+        MESH_NETWORK_MATRIX[$i,$j]=0
+    done
+done
+
+function CREATE_MESH_NETWORK_MATRIX_FILE () {
+ 
+       FILE_NAME_INDEX=$(echo ${MESH_NETWORK_MATRIX_LINK_NUMBER_FILE} | tr '/' ' ' | wc -w)
+       FILE_NAME=$(echo  ${MESH_NETWORK_MATRIX_LINK_NUMBER_FILE} | cut -f $(( ${FILE_NAME_INDEX}+1 )) -d '/' )
+       DIRECTORY_NAME=$(echo  ${MESH_NETWORK_MATRIX_LINK_NUMBER_FILE} | cut -f 1-$(( ${FILE_NAME_INDEX} )) -d '/' )
+
+       #echo file_name: ${FILE_NAME}
+       #echo direct_name: ${DIRECTORY_NAME}
+
+      [ -e  ${DIRECTORY_NAME}/${FILE_NAME} ] && rm  ${DIRECTORY_NAME}/${FILE_NAME}
+      for ((j=1;j<=${NODE_NUMBER};j++)) do
+         row=
+         for ((i=1;i<=${NODE_NUMBER};i++)) do
+             row=$(echo ${MESH_NETWORK_MATRIX[$i,$j]},${row})
+         done
+      (echo ${row} | sed 's/,$//') >> ${DIRECTORY_NAME}/${FILE_NAME}
+      done 
+}
+
+
+for NODE_INDEX_1 in `seq 1 1 ${NODE_NUMBER}`
+do
+  for NODE_INDEX_2 in `seq $(( ${NODE_INDEX_1} + 1)) 1 ${NODE_NUMBER}`
+  do
+      #echo index_1: $NODE_INDEX_1  index_2:$NODE_INDEX_2
+      PUB_IP_1=$((echo "${PUBLIC_IPS}" | xargs) | cut -f $NODE_INDEX_1 -d ' ')
+      PUB_IP_2=$((echo "${PUBLIC_IPS}" | xargs) | cut -f $NODE_INDEX_2 -d ' ')
+      PRI_IP_1=$((echo "${PRIVATE_IPS}" | xargs) | cut -f $NODE_INDEX_1 -d ' ')
+      PRI_IP_2=$((echo "${PRIVATE_IPS}" | xargs) | cut -f $NODE_INDEX_2 -d ' ')
+      # Maximum number of communication link between a pair of nods is 4
+      RANDOM=20 # This is seed value for generating random number
+      WG_CONNECTION_NUMBER=$(( ( RANDOM % ${WG_CONNECTION_MAX_NUMBER} )  + 1 ))
+      #echo IPS_RECORD: $PUB_IP_1 $PUB_IP_2 $PRI_IP_1 $PRI_IP_2 ${WG_CONNECTION_NUMBER}
+      MESH_NETWORK_LIST="${PUB_IP_1} ${PUB_IP_2} ${PRI_IP_1} ${PRI_IP_2} ${WG_CONNECTION_NUMBER}, ${MESH_NETWORK_LIST}"
+
+      MESH_NETWORK_MATRIX[$NODE_INDEX_1,$NODE_INDEX_2]=${WG_CONNECTION_NUMBER}
+      MESH_NETWORK_MATRIX[$NODE_INDEX_2,$NODE_INDEX_1]=${WG_CONNECTION_NUMBER}
+
+  done
+done
+
+# Call this function to create mesh network connection matrix
+CREATE_MESH_NETWORK_MATRIX_FILE
+echo ${MESH_NETWORK_MATRIX[@]}
+
+#remove the last ,
+MESH_NETWORK_LIST=$(echo ${MESH_NETWORK_MATRIX[@]}| sed 's/,$//')
+echo MESH_NETWORK_TRIM:${MESH_NETWORK_LIST}
+
+exit
+#Example of MESH_NETWORK
+#MESH_NETWORK_LIST="10.33.184.75 10.33.184.38 10.0.17.12 10.0.17.9 1, 10.33.184.75 10.33.184.57 10.0.17.12 10.0.17.15 2, 10.33.184.38 10.33.184.57 10.0.17.9 10.0.17.15 1"
+
+
+#STEP2:CREATE MESH NETWORK USING WIREGUARD AND ASSIGN BANDWIDTH AND LATENCY
+
+WG_SUBNET_INIT=${WG_SUBNET}
+WG_PORT_INIT=${WG_PORT}
+
+IFS=","
+WG_CONNECTION_NUMBER=0
+TOTAL_WG_CONNECTION=0
+for wg_link in ${MESH_NETWORK_LIST}
+do
+
+    #https://tecadmin.net/bash-add-two-integers/
+
+    WG_CONNECTION_NUMBER=$( expr $((echo "${wg_link}" | xargs) | cut -f 5 -d ' ') + ${WG_CONNECTION_NUMBER})
+    PUBLIC_IP_PAIR=$((echo "${wg_link}" | xargs) | cut -f 1-2 -d ' ')
+    PRIVATE_IP_PAIR=$((echo "${wg_link}" | xargs) | cut -f 3-4 -d ' ')
+
+
+    for (( count=${TOTAL_WG_CONNECTION}; count<$[WG_CONNECTION_NUMBER]; count++))
+    do
+       temp_value=$( expr $(echo $WG_SUBNET_INIT | cut -f 3 -d '.') + $count)
+
+       LINK_WG_SUBNET=$(echo ${WG_SUBNET_INIT} | awk -F'.' -v OFS="." -v t=${temp_value} '{$3=t;print}')
+
+       LINK_WG_PORT=$((${WG_PORT_INIT} + ${count}))
+
+       LINK_WG_SERVER_IP=${LINK_WG_SUBNET::-4}1
+       LINK_WG_CLIENT_IP=${LINK_WG_SUBNET::-4}2
+
+       echo ./wireguard/wireguard-configuration-file-creation  "${PUBLIC_IP_PAIR}"  "${PRIVATE_IP_PAIR}"  ${LINK_WG_PORT} ${LINK_WG_SUBNET} ${LINK_WG_SERVER_IP} ${LINK_WG_CLIENT_IP} 
+       ./wireguard/wireguard-configuration-file-creation  "${PUBLIC_IP_PAIR}"  "${PRIVATE_IP_PAIR}" ${LINK_WG_PORT} ${LINK_WG_SUBNET} ${LINK_WG_SERVER_IP} ${LINK_WG_CLIENT_IP} 
+   done
+   TOTAL_WG_CONNECTION=${count}
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

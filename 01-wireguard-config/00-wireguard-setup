@@ -1,0 +1,11 @@
+#!/bin/bash
+
+. config
+
+# 1. Install wireguard on all nodes.
+# 2. Create mesh network using all nodes.
+# 3. Display mesh network.
+
+./01-wireguard-installation
+./02-mesh-network-creation
+./03-mesh-network-display.sh
