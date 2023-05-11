@@ -108,13 +108,13 @@ Part-2 - Running experimental scenarios mentioned in the paper
 
 Assuming that, Part-1 has been successfully finished and verified.
 
-1. Run the following command to run the whole experiments when latency changes from 5X to X, that is, latency-20.csv (4X)  latency-40.csv (3X)  latency-60.csv (2X)  latency-80.csv (X) latency_def.csv (5X)
+1. Run the following command to run the whole experiments when latency changes from 5X to X, that is, latency_def.csv(5X) latency-20.csv(4X)  latency-40.csv(3X)  latency-60.csv(2X)  latency-80.csv(X)
     ```sh
     cd 04-experiment-scenarios
     ./frag-experiments-scenario-run <DB_NAME>
     ```
 ### Scenario - 2 (Impact of down-sizing and up-sizing of cluster on the throughput)
-1. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X and X latencies.
+1. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X and X latencies, that is, latency_def.csv(5X) and latency-80.csv(X)
 
     ```sh
     cd 04-experiment-scenarios
@@ -122,14 +122,14 @@ Assuming that, Part-1 has been successfully finished and verified.
     ```
 ### Scenario - 3 (Impact of links removal on the performance)
 #### Densely connected network
-1. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X and X latencies.
+1. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X latency.
 
     ```sh
     cd 04-experiment-scenarios
     ./frag-multiple-links-experiments-without-link-remove <DB_NAME> <DELAY>
     ```
 #### Sparsely connected network
-2. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X and X latencies.
+2. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X latency.
 
     ```sh
     cd 02-tc-config
