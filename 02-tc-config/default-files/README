@@ -1,7 +1,7 @@
 #For network based on ens3 interface, we prepare latency matrix in top-triangular matrix or down tringular matrix. In terms of bandwidth, we prepare a diagonal matrix in which the 
 #value of diagonal is zero and other values are symetric to diagonal of matrix.  
 
-#latency-20.csv refers to when latency decreases by 20% from latency_def.csv (5X).
+#latency-20.csv (4X) refers to when latency decreases by 20% from latency_def.csv (5X).
 ...
 ..
 #latency-80.csv (X) refers to when latency decreases by 80% from latency_def.csv (5X).
