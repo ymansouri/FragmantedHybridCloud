@@ -110,14 +110,14 @@ Assuming that, Part-1 has been successfully finished and verified.
 1. Run the following command to run the whole experiments when latency changes from X to 5X.
     ```sh
     cd 04-experiment-scenarios
-    ./frag-experiments-scenario-run 
+    ./frag-experiments-scenario-run <DB_NAME>
     ```
 ### Scenario - 2 (Impact of down-sizing and up-sizing of cluster on the throughput)
 1. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X and X latencies.
 
     ```sh
     cd 04-experiment-scenarios
-    ./frag-experiments-scenario-run-nodes-add-remove
+    ./frag-experiments-scenario-run-nodes-add-remove <DB_NAME> <DELAY>
     ```
 ### Scenario - 3 (Impact of links removal on the performance)
 #### Densely connected network
@@ -125,7 +125,7 @@ Assuming that, Part-1 has been successfully finished and verified.
 
     ```sh
     cd 04-experiment-scenarios
-    ./frag-multiple-links-experiments-without-link-remove
+    ./frag-multiple-links-experiments-without-link-remove <DB_NAME> <DELAY>
     ```
 #### Sparsely connected network
 2. Run the following command to run whole experiment when node(s) are added or removed from the cluster. This script run for 5X and X latencies.
@@ -134,5 +134,5 @@ Assuming that, Part-1 has been successfully finished and verified.
     cd 02-tc-config
     ./10-tcset-scenario_3.sh
     cd 04-experiment-scenarios
-    ./frag-multiple-links-experiments
+    ./frag-multiple-links-experiments <DB_NAME> <DELAY>
     ```
