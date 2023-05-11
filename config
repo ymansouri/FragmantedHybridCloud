@@ -47,7 +47,7 @@ PATH_PREFIX="${HOME_FOLDER}"/FragmantedHybridCloud/02-tc-config/default-files
 
 # These two files represent actual bandwidth and latency between 8 datacenters 
 
-BANDWIDTH_FILE=${PATH_PREFIX}/bandwidth_default.csv
+BANDWIDTH_FILE=${PATH_PREFIX}/bandwidth_def.csv
 LATENCY_FILE=${PATH_PREFIX}/latency_def.csv
 PACKETLOSS_FILE=${PATH_PREFIX}/packetloss.csv
 MESH_NETWORK_MATRIX_LINK_NUMBER_FILE=${PATH_PREFIX}/mesh_network_link_number.csv
