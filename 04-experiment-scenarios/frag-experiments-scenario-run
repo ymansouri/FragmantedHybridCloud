@@ -40,7 +40,7 @@ PRE_FILE="latency_def.csv"
 ##########################
 
 # Here, Please specify the latency files, we intend to use
-# Example - for file_name in latency-20.csv  latency-40.csv  latency-60.csv   latency-80.csv
+# Example - for file_name in latency-20.csv (4X)  latency-40.csv (3X)  latency-60.csv (2X)  latency-80.csv (X) latency_def.csv (5X)
 
 ##########################
 
