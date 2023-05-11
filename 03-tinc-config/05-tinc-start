@@ -1,0 +1,28 @@
+#!/bin/bash
+
+#############################
+
+# Install tinc and enable autostart through systemd service (but does not start it)
+
+#############################
+. config
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+
+ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
+echo ${ALL_DESTINATIONS}
+
+
+
+echo -e "\e[44mRUN TINC ON ALL NODES: ${ALL_DESTINATIONS}\e[0m"
+# step 1: Start tinc on all nodes in order to create network interface for tinc and assign IP to it.
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+  SSH_HOST=${DESTINATION%:*}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+  ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "sudo tinc -n ${VPN_NAME} start"
+done
+unset IFS
+# this command was for version 1.0
+#ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "sudo systemctl start tinc@${VPN_NAME}"

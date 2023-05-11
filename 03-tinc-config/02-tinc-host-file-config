@@ -1,0 +1,70 @@
+#!/bin/bash 
+
+##################################
+
+# Configuring host for tinc setup
+
+##################################
+
+. config
+
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
+
+PRIVATE_IPS=$(cat ${PRIVATE_IPS_FILE})
+
+# Step 1: Generate a host configuration file on all hosts with name vpnname_vm_0, vpnname_vm_1, vpnname_vm_2, ..., vpnname_vm_k
+
+HOST_COUNT=0
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+
+  HOST_COUNT=$((${HOST_COUNT}+1))
+  HOST_IP=${TINC_SUBNET%.*}.${HOST_COUNT}
+
+  SSH_HOST=${DESTINATION%:*} 
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+  HOST_NAME=$(ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST%:*} "cat /etc/hostname")
+  HOST_NAME=$(echo ${HOST_NAME}| sed 's/-/_/g') 
+  #echo host_name: ${HOST_NAME}
+  ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST} "sudo tinc -n ${VPN_NAME} init ${HOST_NAME}; sudo tinc -n ${VPN_NAME} add subnet ${HOST_IP}/32"
+done
+unset IFS
+
+#Step 2: Add IPs allocated to wg  in each node to /host/[node_name] through tinc command which are saved in file host_address
+
+function set_wg_ips_in_host_file(){
+  echo "#!/bin/bash" >> host_address
+
+  while IFS= read -r wg_ip ;
+  do
+      echo "sudo tinc -n ${VPN_NAME} add Address ${wg_ip}" >> host_address
+
+  done <<< "$1"
+
+  ./runscriptat.sh $2 ${SSH_KEY_FILE} "host_address"
+  rm -f host_address
+}
+
+
+# This part extracts wg ip address for each host VM
+IFS=","
+WG_SUBNET_PREFIX=$(echo ${WG_SUBNET}| cut -f 1-2 -d '.')
+#echo ${WG_SUBNET_PREFIX}
+
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+
+  SSH_HOST=${DESTINATION%:*}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+  HOST_NAME=$(ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST%:*} "cat /etc/hostname" |  sed 's/-/_/g')
+
+
+  WG_IPS=$(ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST} "ip a | grep ${MESH_NETWORK_INTERFACE} |grep "${WG_SUBNET_PREFIX}"|sed -e 's/^[[:space:]]*//'| cut -f 2 -d ' '| cut -f 1 -d '/' ")
+
+  set_wg_ips_in_host_file ${WG_IPS} ${DESTINATION}
+done
+unset IFS

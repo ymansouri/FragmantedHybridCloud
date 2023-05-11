@@ -1,0 +1,73 @@
+#!/bin/bash
+
+######################################
+
+# Install tinc and enable autostart through systemd service (but does not start it)
+
+######################################
+
+
+. config
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
+echo ${ALL_DESTINATIONS}
+
+# Step 1: Install tinc on all nodes
+./cpscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "tinc/tinc_1.1~pre18-1_amd64.deb"
+./runscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "tinc/tinc-installation.sh"
+
+
+# Step 2: Upload tinc service definition files into all nodes
+./cpscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "tinc/tinc.service"
+./cpscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "tinc/tinc@.service"
+
+
+# Step 3: Configuration tinc to enable on Boot on all nodes [NoT yet started]
+
+echo -e "\e[44mTINC INSTALLATION ON: ${ALL_DESTINATIONS} \e[0m"
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+  SSH_HOST=${DESTINATION%:*}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+  ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "sudo systemctl unmask tinc; sudo systemctl daemon-reload;sudo systemctl enable tinc@${VPN_NAME}"
+done
+unset IFS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
