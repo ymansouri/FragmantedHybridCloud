@@ -7,7 +7,7 @@
 ./04-remove-bandwidth-latency-matrix-rules.sh
 
 #****Creating latency and bandwidth matrix for sparsely connected network**********
-#./05-creat-latencies-bandwidths-sparse-matrix.sh
+./05-creat-latencies-bandwidths-sparse-matrix.sh default-files/mesh_network_link_number.csv
 
 #*****Apply and show  latency/bandwidth rules mentioned in above step***************
 
