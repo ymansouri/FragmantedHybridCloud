@@ -1,0 +1,77 @@
+#!/bin/bash 
+
+#################################
+
+# This scripts creates tinc-conf, tinc-up and tinc-down on all VMs/nodes.
+
+################################
+. config
+
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+
+ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
+
+#VM_NUMBER=$(echo ${PUBLIC_IPS} | wc -w)
+
+
+SSH_HOST=$(echo ${ALL_DESTINATIONS} | cut -f 1 -d ',')
+ALL_HOSTNAMES=$(./hostnames.sh "${PUBLIC_IPS}" ${VM_USERNAME} | sed 's/,/ /g')
+echo ${ALL_HOSTNAMES}
+
+echo -e "\e[44mCONFIGURATION OF  TINC-CONF\e[0m"
+
+# Step 1: Configure tinc-conf for all nodes
+HOST_COUNT=0
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+
+  HOST_COUNT=$((${HOST_COUNT}+1))
+  HOST_IP=${TINC_SUBNET%.*}.${HOST_COUNT}
+
+  SSH_HOST=${DESTINATION%:*}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+  echo ./runscriptat.sh ${DESTINATION} ${SSH_KEY_FILE} "tinc/tinc-conf.sh" "${VPN_NAME}" ${ALL_HOSTNAMES}
+  ./runscriptat.sh ${DESTINATION} ${SSH_KEY_FILE} "tinc/tinc-conf.sh" "${VPN_NAME}" ${ALL_HOSTNAMES}
+
+done
+unset IFS
+
+
+
+echo -e "\e[44mCONFIGURATION OF  TINC-UP AND TINC-DOWN\e[0m"
+
+# Step 2: Configure tinc-up and tinc-down for all nodes
+
+HOST_COUNT=0
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+
+  HOST_COUNT=$((${HOST_COUNT}+1))
+  HOST_IP=${TINC_SUBNET%.*}.${HOST_COUNT} 
+
+  SSH_HOST=${DESTINATION%:*}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+  #ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "sudo chmod 755 /etc/tinc/${VPN_NAME}/tinc-*; sudo ufw allow 655"
+  ./runscriptat.sh ${DESTINATION} ${SSH_KEY_FILE} "tinc/tinc-updown.sh" "${VPN_NAME} ${TINC_SUBNET} ${HOST_IP}"
+
+done
+unset IFS
+
+
+echo -e "\e[44mCONFIGURATION OF  TINC-UP AND TINC_DOWN\e[0m"
+
+# Step 3: Make tinc-* scripts executable and add a firewall rule that will allow traffic through port 655
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+  SSH_HOST=${DESTINATION%:*}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+  ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "sudo chmod 755 /etc/tinc/${VPN_NAME}/tinc-*; sudo ufw allow 655"
+done
+unset IFS

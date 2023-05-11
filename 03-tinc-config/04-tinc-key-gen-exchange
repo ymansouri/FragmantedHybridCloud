@@ -1,0 +1,114 @@
+#!/bin/bash 
+
+. config
+
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+
+ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
+
+TINC_KEYS_FOLDER="tinc-keys-folder"
+
+mkdir -p ${TINC_KEYS_FOLDER}
+echo -e "\e[44mDOWNLOAD ALL KEYS ON WORKER\e[0m"
+
+# Step 1: Download all host configuration files into the worker (here hybrid cloud) and then exchange them between hosts (e.g., file vmo we send to VM1 and file vm1 we send to VM0)
+
+# Create tinc-key-folder on worker and download all host configuration files into the worker (in folder tinc-key-folder).
+
+# Echo Copying keys from all tinc nodes to controller node.
+
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+  SSH_HOST=${DESTINATION%:*}
+  rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+   ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "mkdir -p /tmp/tinc-key ; sudo cp /etc/tinc/"${VPN_NAME}"/hosts/* /tmp/tinc-key/ ; sudo chown ${VM_USERNAME}:${VM_USERNAME} /tmp/tinc-key/* ; chmod 600 /tmp/tinc-key/*"
+
+   echo scp -r -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}:/tmp/tinc-key/* ${TINC_KEYS_FOLDER}
+   scp -r -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}:/tmp/tinc-key/* ${TINC_KEYS_FOLDER}
+done
+unset IFS
+
+#echo All keys obtained:
+ls -la ${TINC_KEYS_FOLDER}/
+#echo Copying all keys to all nodes.
+
+
+echo -e "\e[44mUPLOAD ALL KEYS ON VMS RUNNING TINC\e[0m"
+#Step 2: Upload all host configuration files into all nodes
+#Step 2_1: prepare host fils for each node
+
+function prepare_host_file ()
+{
+   SSH_HOST=$1
+   HOST_IP=$(echo ${SSH_HOST}| cut -f 2 -d '@')
+   HOST_NAME=$(ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST} "hostname"|sed 's/-/_/g'|sed 's/ *$//g' )
+   #echo host_ip: ${HOST_IP}  host_name:${HOST_NAME}
+
+   mkdir -p keys-${SSH_HOST}
+   cp -r ${TINC_KEYS_FOLDER}/*   keys-${SSH_HOST}
+
+   DIR="keys-${SSH_HOST}/*"
+   for f in ${DIR}
+   do
+       ff=$(echo $f| cut -f 2 -d '/')
+       #echo file: $ff
+
+       if [[ "${HOST_NAME}" != "$ff" ]]
+       then
+                SOURCE_INDEX=$(echo  ${HOST_NAME}| cut -f 6 -d '_')
+                DEST_INDEX=$(echo  ${ff}| cut -f 6 -d '_')
+                #echo ${SOURCE_INDEX} , ${DEST_INDEX}
+
+                sed -i '/Address =/d'  keys-${SSH_HOST}/$ff
+                while read line
+                do
+                    #echo line: $line
+                    FIRST_NODE_INDEX=$(echo $line|cut -f 1 -d ' ')
+                    SECOND_NODE_INDEX=$(echo $line|cut -f 5 -d ' ')
+                    #echo first: ${FIRST_NODE_INDEX}, second: ${SECOND_NODE_INDEX}
+                    # reading each line
+                    if [[  ${SOURCE_INDEX} -eq ${FIRST_NODE_INDEX} ]] && [[ ${DEST_INDEX} -eq ${SECOND_NODE_INDEX} ]]
+                    then
+                             #echo "INIF"
+                             WG_IP_PAIR=$(echo $line | cut -f  8 -d ' '| cut -f 1 -d '/')
+                             #echo wg-ip:${WG_IP_PAIR}
+                             echo  "Address = ${WG_IP_PAIR}" >>  keys-${SSH_HOST}/$ff
+                    elif  [[  "${SOURCE_INDEX}" == "${SECOND_NODE_INDEX}" ]] && [[ "${DEST_INDEX}" == "${FIRST_NODE_INDEX}" ]]
+                    then
+                             #echo "INELIF"
+                             WG_IP_PAIR=$(echo $line | cut -f  4  -d ' '| cut -f 1 -d '/')
+                             echo  "Address = ${WG_IP_PAIR}" >> keys-${SSH_HOST}/$ff
+                    fi
+                    #echo $line
+                done < ${MESH_NETWORK_CONNECTED_LINKS_FILE}
+       fi
+   done
+
+}
+
+unset IFS
+IFS=","
+for DESTINATION in ${ALL_DESTINATIONS}
+do
+    echo -e "\e[44mPREPARING HOST FILES\e[0m"
+   #echo Copying keys to ${SSH_HOST}
+   SSH_HOST=${DESTINATION%:*}
+   rm ~/.ssh/known_hosts >/dev/null 2>&1
+
+   prepare_host_file "${SSH_HOST}" "${TINC_KEYS_FOLDER}"
+
+   ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "mkdir -p /tmp/tinc-key"
+   #scp  -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} $TINC_KEYS_FOLDER/* ${SSH_HOST}:/tmp/tinc-key
+   scp  -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} keys-${SSH_HOST}/* ${SSH_HOST}:/tmp/tinc-key
+   ssh  -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST} "sudo mv /tmp/tinc-key/* /etc/tinc/${VPN_NAME}/hosts ; sudo chown root:root /etc/tinc/${VPN_NAME}/hosts/* ; sudo chmod 600 /etc/tinc/${VPN_NAME}/hosts/*"
+   rm -r  keys-${SSH_HOST}
+done
+unset IFS
+
+
+echo -e "\e[44mDELETE KEYS ON WORKER\e[0m"
+# Delete tinck-key folder on the worker
+rm -r "$TINC_KEYS_FOLDER"
