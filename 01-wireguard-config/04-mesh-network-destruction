@@ -1,0 +1,82 @@
+#!/bin/bash
+
+#####################
+
+# This code is meant to destroy the mesh network created using wireguard.
+
+#####################
+
+. config
+
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+
+ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" ${VM_USERNAME})
+echo ${ALL_DESTINATIONS}
+
+#  Step 1: Bring wireguard down
+echo -e "\e[44mSHUTDOWN WIREGUARD INTERFACES:\e[0m"
+./runscriptat.sh ${ALL_DESTINATIONS} ${SSH_KEY_FILE} "wireguard/wireguarddown.sh" ${MESH_NETWORK_INTERFACE}
+
+
+#Step 2: Remove wireguard interfaces
+echo -e "\e[44mREMOVING WIREGUARD INTERFACES:\e[0m"
+for ip in ${PUBLIC_IPS}
+do
+   ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${VM_USERNAME}@${ip}   "sudo rm -r /etc/wireguard/${MESH_NETWORK_INTERFACE}*"
+done
+
+#Step 3: Remove two files from 02-tc-config/default-files: "mesh_network_connected_links.csv" and  "/mesh_network_nonconnected_links.csv"
+echo -e "\e[44mREMOVING LINK_NUMBER_FILE AND MESH_CONNECTED_LINK:\e[0m"
+sudo rm  ${MESH_NETWORK_MATRIX_LINK_NUMBER_FILE}
+sudo rm  ${MESH_NETWORK_CONNECTED_LINKS_FILE}
+sudo rm  ${MESH_NETWORK_NOCONNECTED_LINKS_FILE}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
