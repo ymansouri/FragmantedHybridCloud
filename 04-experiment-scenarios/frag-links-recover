@@ -1,0 +1,53 @@
+#!/bin/bash
+
+. config
+
+
+: '
+if [[ "$1" == "" ]]
+then
+  echo Usage: $0 "LINKS_ID" 
+  exit
+fi
+
+LINKS_REMOVING_SCENARIO=$1
+'
+
+LINKS_REMOVING_SCENARIO=${links_cut_string}
+#echo links:${LINKS_REMOVING_SCENARIO}
+#CURRENT_RESULT_FOLDER=${RESULTS_FOLDER}/nodes-latency
+
+
+# Step_1: Recovering links
+echo -e "\e[44mRECOVERING LINKS\e[0m"
+IFS=","
+for link in ${LINKS_REMOVING_SCENARIO}
+do
+    #Recovering links
+    echo $link is recovering
+    ${PATH_PREFIX_FOR_EXPERIMENT}/01-wireguard-config/06-mesh-network-links-recover  ${link}
+done
+unset IFS
+
+# Step_2: Removing rules
+echo -e "\e[44mRemoving RULES FROM CLUSTER\e[0m"
+${PATH_PREFIX_FOR_EXPERIMENT}/02-tc-config/07-remove-bandwidth-latency-sparse-matrix-rules-from-cluster.sh
+
+
+# Step_3: Applying rules for new set of experiments
+echo -e "\e[44mAPPLYING RULES TO CLUSTER\e[0m"
+${PATH_PREFIX_FOR_EXPERIMENT}/02-tc-config/06-apply-bandwidth-latency-sparse-matrix-rules-to-cluster.sh "${ASYM_MESH_BANDWIDTH_FILE}" "${ASYM_MESH_LATENCY_FILE}"
+
+
+
+
+
+
+
+
+
+
+
+
+
+

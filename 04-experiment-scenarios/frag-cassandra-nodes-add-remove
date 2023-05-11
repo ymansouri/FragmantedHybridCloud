@@ -1,0 +1,136 @@
+#!/bin/bash
+
+. config
+
+if [[ "$2" == "" ]]
+then
+  echo Usage: $0 "NODES_LOCATIONS" "<RESULTS_FOLDER>"
+  exit
+fi
+
+
+DB_NAME=cassandra
+MAX_RETRIES=5
+RESULTS_FOLDER=${2}
+
+CURRENT_RESULT_FOLDER=${RESULTS_FOLDER}/nodes-add-remove-timestamp-${DB_NAME}
+
+# Record the actual time in which one node is removed or added
+function get_removed_added_node_time ()
+{
+
+    #r: remove node  and a: add node
+    NODE_OPERATION_FLAG=$1
+    PREVIOUS_NUMBER_NODES_IN_CLUSTER=$2
+    AFTER_NUMBER_NODES_IN_CLUSTER=$(./frag-cluster-status ${DB_NAME})
+    if [ "${NODE_OPERATION_FLAG}" = "r" ]
+    then
+         SCALE_FACTOR=+1
+    else
+         SCALE_FACTOR=-1
+    fi
+    RETRIES=0
+    #echo with_sca_factor:  $((${AFTER_NUMBER_NODES_IN_CLUSTER}${SCALE_FACTOR}))
+    while [[ $((${AFTER_NUMBER_NODES_IN_CLUSTER}${SCALE_FACTOR})) != ${PREVIOUS_NUMBER_NODES_IN_CLUSTER} ]]
+    do
+          sleep 50
+          AFTER_NUMBER_NODES_IN_CLUSTER=$(./frag-cluster-status ${DB_NAME})
+          RETRIES=$((${RETRIES}+1))
+          if [[ ${RETRIES} == ${MAX_RETRIES} ]]
+          then
+                echo stoped
+                exit 1
+          fi
+    done
+    echo  `date`
+}
+
+# Remove one node
+function remove_node ()
+{
+  # Potentially do nodetool removenode on the Master
+  PLACE=$1
+  IP=${IPS[$PLACE]}
+  echo `date` Removing ${PLACE} ${IP} >> ${CURRENT_RESULT_FOLDER}
+  CURRENT_NUMBER_NODES_IN_CLUSTER=$(./frag-cluster-status $DB_NAME)
+
+  echo ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "sudo nodetool flush ; sudo nodetool drain ;sudo service cassandra stop"
+       ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "sudo nodetool flush ; sudo nodetool drain ;sudo service cassandra stop"
+
+  removed_node_date=$(get_removed_added_node_time r ${CURRENT_NUMBER_NODES_IN_CLUSTER})
+  echo ${removed_node_date} Removed ${PLACE} ${IP} >> ${CURRENT_RESULT_FOLDER}
+}
+
+# Remove multi nodes
+function remove_nodes ()
+{
+  TIMEOUT=$1
+  for PLACE in $2
+  do
+    remove_node ${PLACE}
+    sleep ${TIMEOUT}
+  done
+}
+
+# Add one node
+function add_node ()
+{
+  PLACE=$1
+  IP=${IPS[$PLACE]}
+  CURRENT_NUMBER_NODES_IN_CLUSTER=$(./frag-cluster-status $DB_NAME)
+  echo `date` Adding ${PLACE} ${IP} >> ${CURRENT_RESULT_FOLDER}
+  echo ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "sudo service cassandra start"
+       ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "sudo service cassandra start"
+  added_node_date=$(get_removed_added_node_time a ${CURRENT_NUMBER_NODES_IN_CLUSTER})
+  echo ${added_node_date} Added ${PLACE} ${IP}>> ${CURRENT_RESULT_FOLDER} 
+
+}
+
+# Add multi nodes
+function add_nodes ()
+{
+  TIMEOUT=$1
+  for PLACE in $2
+  do
+    add_node ${PLACE}
+    sleep ${TIMEOUT}
+  done
+}
+
+
+declare -A IPS
+
+IPS=(["MELBOURNE"]="10.33.184.57" ["SYDNEY"]="10.33.184.66" ["CANBERRA"]="10.33.184.40" ["PUNE"]="10.33.184.25" ["SINGAPORE"]="10.33.184.54" ["SEOUL"]="10.33.184.55" ["DUBAI"]="10.33.184.46" ["VIRGINIA"]="10.33.184.38")
+
+if [[ $# > 0 ]]
+then
+  # Accepting scenario from command line
+  for i in $1
+  do
+    if [[ "${i::1}" == "+" ]]
+    then
+      add_node ${i:1}
+    elif [[ "${i::1}" == "-" ]]
+    then
+      remove_node ${i:1}
+    else
+      echo Sleeping ${i}
+      sleep ${i}
+    fi
+  done
+
+else
+  # Manual usage
+  echo Manual mode
+
+  remove_nodes 2 'SYDNEY CANBERRA PUNE'
+fi
+
+exit
+
+# Sample
+#remove_node "SYDNEY"
+#add_node "SYDNEY"
+#add_nodes 2 'SYDNEY CANBERRA PUNE'
+
+

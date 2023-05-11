@@ -1,0 +1,77 @@
+#!/bin/bash
+
+. config
+
+
+#For scaling up
+CLUSTER_DOWNSIZING_SCENARIO="50 -SINGAPORE 50 -SYDNEY 50 -CANBERRA 50 -PUNE  50 -DUBAI 50 -VIRGINIA"
+CLUSTER_UPSIZING_SCENARIO="300 +VIRGINIA 150 +DUBAI 150 +PUNE  150 +CANBERRA 150 +SYDNEY 150 +SINGAPORE"
+
+#CLUSTER_DOWNSIZING_SCENARIO="160 -SYDNEY"
+#CLUSTER_UPSIZING_SCENARIO="10 +SYDNEY "
+
+MAX_RETRIES=5
+RETRIES=0
+RETRY_DELAY=10
+
+if [[ "$2" == "" ]]
+then
+  echo Usage: $0 "<DB_NAME>" "<DELAY_VALUE>" 
+  exit
+fi
+
+#Sample values: mongo, (_def, -80)
+DB_NAME=$1
+delay=$2
+
+
+FLUSHLOAD=lf
+FLUSHLOAD_FOLDER=${RESULTS}/worker2fragcloud-d${delay}_b_def-${DB_NAME}-${FLUSHLOAD}-$(date +"%Y%m%d%H%M%S%N")
+mkdir -p ${FLUSHLOAD_FOLDER}
+time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${FLUSHLOAD} ${FLUSHLOAD_FOLDER}
+
+#########################
+
+# Here, Please specify the workloads, we intend to use
+# Example - for WORKLOAD in a b c d e f
+
+##########################
+
+for WORKLOAD in a b c d e f 
+do
+       echo -e "\e[44mworkload" ${WORKLOAD}" is running\e[0m"
+       RESULTS_FOLDER=${RESULTS}/worker2fragcloud-d${delay}_b_def-${DB_NAME}-${WORKLOAD}-$(date +"%Y%m%d%H%M%S%N")
+       mkdir -p ${RESULTS_FOLDER}
+       #STEP_1: REMOVE NODES
+       echo ./frag-${DB_NAME}-nodes-add-remove ${CLUSTER_DOWNSIZING_SCENARIO} ${RESULTS_FOLDER}
+            ./frag-${DB_NAME}-nodes-add-remove "${CLUSTER_DOWNSIZING_SCENARIO}" ${RESULTS_FOLDER} 
+
+       sleep 150
+
+       #STEP_2: ADD NODES
+       ./frag-${DB_NAME}-nodes-add-remove "${CLUSTER_UPSIZING_SCENARIO}" ${RESULTS_FOLDER} &
+
+
+       #STEP_3: RUN WORKLOAD
+       #echo Cluster resizing scenario: ${CLUSTER_DOWNSIZING_SCENARIO} > ${}/scenario
+       time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${WORKLOAD} ${RESULTS_FOLDER} 
+
+
+
+       #Check if adding nodes script has finished.
+       RETRIES=0
+       while [[ $(ps uax | pgrep -f "frag-${DB_NAME}-nodes-add-remove ${CLUSTER_UPSIZING_SCENARI}") ]]
+       do
+               echo running
+               sleep ${RETRY_DELAY}
+               RETRIES=$((${RETRIES}+1))
+               if [[ ${RETRIES} == ${MAX_RETRIES} ]]
+               then
+                   echo stopped
+                   exit 1
+               fi
+       done
+
+       echo successfully finished
+done
+exit 0

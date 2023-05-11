@@ -1,0 +1,62 @@
+#!/bin/bash
+
+##################################
+
+# This script shows the status of cluster for MongoDB, Cassandra, and Redis.
+# Note that this do not provide this functionality for MySQL because we ignored removing node from this database.
+
+##################################
+
+. config
+. CLUSTER-NODES
+
+if [[ "$1" == "" ]]
+then
+  echo Usage: $0 "<DB_NAME>"
+  exit
+fi
+
+if [[ ${1} == "mongo" ]]
+then
+    for public_ip in  ${PLACE_TO_IP[@]}
+    do
+       #echo public_ip:${public_ip}
+       MASTER_NODE_INDICATION=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${public_ip}   "mongo --eval 'rs.hello()' |  grep \"isWritablePrimary\" |  cut  -f 2 -d ':'| tr  ',' ' '|tr -d ' '")
+
+       if [[ ${MASTER_NODE_INDICATION} == "true" ]]
+       then
+           CLUSTER_NODES_NUMBER=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${public_ip}   "mongo --eval 'rs.status()'| grep _id | wc -l")
+           echo  ${CLUSTER_NODES_NUMBER}
+           break
+      fi
+    done
+
+elif [[ ${1} == "cassandra" ]]
+then
+    for public_ip in  ${PLACE_TO_IP[@]}
+    do
+        #echo PUBLIC_IP: ${public_ip}
+        NODE_EXITENCE_INDICATION=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${public_ip}   "nodetool status | grep UN| wc -l " )
+        if [[ ${NODE_EXITENCE_INDICATION} -gt 0 ]]
+        then
+               echo ${NODE_EXITENCE_INDICATION}
+             break
+        fi
+    done
+elif [[ ${1} == "redis" ]]
+then
+
+   for public_ip in  ${PLACE_TO_IP[@]}
+   do
+         EXISTING_NODES_NUMBER=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${public_ip}  "redis-cli cluster nodes | wc -l")
+         if [[ ${EXISTING_NODES_NUMBER} -gt 1 ]]
+         then
+               CLUSTER_NODES_NUMBER=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${public_ip} "redis-cli cluster nodes| cut -f 2 -d ' '|cut -f 1 -d ':'| wc -l")
+               echo ${CLUSTER_NODES_NUMBER}
+               break
+         fi
+   done
+else
+     echo "Your database is not in list"
+
+fi

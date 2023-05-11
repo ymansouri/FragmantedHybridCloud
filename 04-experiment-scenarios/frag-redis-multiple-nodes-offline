@@ -1,0 +1,41 @@
+#!/bin/bash
+
+. config
+
+MAX_RETRIES=5
+RETRIES=0
+RETRY_DELAY=10
+
+if [[ "$2" == "" ]]
+then
+  echo Usage: $0 "<DB_NAME>" "<DELAY_VALUE>"
+  exit
+fi
+
+#sample values: mongo, _def
+DB_NAME=$1
+delay=$2
+
+
+FLUSHLOAD=lf
+FLUSHLOAD_FOLDER=${RESULTS}/worker2fragcloud-d${delay}_b_def-${DB_NAME}-${FLUSHLOAD}-$(date +"%Y%m%d%H%M%S%N")
+mkdir -p ${FLUSHLOAD_FOLDER}
+time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${FLUSHLOAD} ${FLUSHLOAD_FOLDER}
+
+
+
+#for WORKLOAD in a b c d  f
+for WORKLOAD in e
+do
+
+       echo -e "\e[44mworkload" ${WORKLOAD}" is running\e[0m"
+       RESULTS_FOLDER=${RESULTS}/worker2fragcloud-d${delay}_b_def-${DB_NAME}-${WORKLOAD}-$(date +"%Y%m%d%H%M%S%N")
+       mkdir -p ${RESULTS_FOLDER}
+
+
+       #STEP_2: RUN WORKLOAD
+       #echo Cluster resizing scenario: ${CLUSTER_DOWNSIZING_SCENARIO} > ${}/scenario
+       time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${WORKLOAD} ${RESULTS_FOLDER}
+
+done
+exit 0

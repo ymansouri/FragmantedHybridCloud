@@ -1,0 +1,69 @@
+#!/bin/bash
+
+. config
+
+CLUSTER_DOWNSIZING_SCENARIO="300 -SINGAPORE 150 -SYDNEY 150 -CANBERRA 150 -PUNE  150 -DUBAI 150 -VIRGINIA"
+CLUSTER_UPSIZING_SCENARIO="40 +SINGAPORE 40 +SYDNEY 40 +CANBERRA  40 +PUNE 40 +DUBAI 40 +VIRGINIA"
+
+#CLUSTER_DOWNSIZING_SCENARIO="160 -SYDNEY"
+#CLUSTER_UPSIZING_SCENARIO="10 +SYDNEY "
+
+MAX_RETRIES=5
+RETRIES=0
+RETRY_DELAY=10
+
+if [[ "$2" == "" ]]
+then
+  echo Usage: $0 "<DB_NAME>" "<DELAY_VALUE>"
+  exit
+fi
+
+#Sample values: mongo, _def
+DB_NAME=$1
+delay=$2
+
+FLUSHLOAD=lf
+FLUSHLOAD_FOLDER=${RESULTS}/worker2fragcloud-d${delay}_b_def-${DB_NAME}-${FLUSHLOAD}-$(date +"%Y%m%d%H%M%S%N")
+mkdir -p ${FLUSHLOAD_FOLDER}
+time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${FLUSHLOAD} ${FLUSHLOAD_FOLDER}
+
+
+#########################
+
+# Here, Please specify the workloads, we intend to use
+# Example - for WORKLOAD in a b c d e f
+
+##########################
+
+for WORKLOAD in  a b c d e f
+do
+       echo -e "\e[44mworkload" ${WORKLOAD}" is running for CLUSTER DOWNSIZING\e[0m"
+       RESULTS_FOLDER=${RESULTS}/worker2fragcloud-d${delay}_b_def-${DB_NAME}-${WORKLOAD}-$(date +"%Y%m%d%H%M%S%N")
+       mkdir -p ${RESULTS_FOLDER}
+       #STEP_1: REMOVE NODES
+       echo ./frag-${DB_NAME}-nodes-add-remove ${CLUSTER_DOWNSIZING_SCENARIO} ${RESULTS_FOLDER}
+            ./frag-${DB_NAME}-nodes-add-remove "${CLUSTER_DOWNSIZING_SCENARIO}" ${RESULTS_FOLDER} &
+
+       #STEP_2: RUN WORKLOAD
+       #echo Cluster resizing scenario: ${CLUSTER_DOWNSIZING_SCENARIO} > ${}/scenario
+       time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${WORKLOAD} ${RESULTS_FOLDER}
+
+       #check if removing nodes script has finished.
+       RETRIES=0
+       while [[ $(ps uax | pgrep -f "frag-${DB_NAME}-nodes-add-remove ${CLUSTER_DOWNSIZING_SCENARI}") ]] 
+       do
+               echo running
+               sleep ${RETRY_DELAY}
+               RETRIES=$((${RETRIES}+1))
+               if [[ ${RETRIES} == ${MAX_RETRIES} ]]
+               then
+                   echo stopped
+                   exit 1
+               fi
+       done
+
+       #STEP_3: ADD NODES
+       echo successfully finished
+       ./frag-${DB_NAME}-nodes-add-remove "${CLUSTER_UPSIZING_SCENARIO}" ${RESULTS_FOLDER}
+done
+exit 0

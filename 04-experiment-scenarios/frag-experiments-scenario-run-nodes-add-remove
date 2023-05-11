@@ -1,0 +1,84 @@
+#!/bin/bash
+
+########################################
+
+# This script runs the whole experiments when node(s) are added or removed. This scripts run for 5X and X. Please node that here we have done experiment for x and 5x.
+# Please consider the same NOTE indicate above.
+# Both these script ( (i) frag-multiple-nodes-add , (ii)frag-multiple-nodes-remove) are called as nodes are removed or added based on an interval time.
+
+########################################
+
+. config
+
+if [[ $# < 1 ]]
+then
+  echo Usage $0 DB_NAME DELAY
+  echo "Example: ./frag-experiments-scenario-run-nodes-add-remove mongo _def(it can be _def, -80)"
+  exit
+fi
+DB_NAME=$1
+DELAY=$2
+
+echo "Experiments are starting with varying latency and default bandwidth"
+
+function apply_rules_on_cluster_for_worker()
+{
+   IFS=,$'\n' read -d '' -r -a ip_arr < ${PUBLIC_IPS_FILE}
+   ip_arr=(${ip_arr})
+
+   echo ip_arr: ${ip_arr[@]}
+
+   for IP in "${ip_arr[@]}";
+   do
+       if [[ $IP != ${WORKER_IP_IN_CLUSTER} ]]
+       then
+        echo ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "cd tc-command-file-client; sudo bash tc-command-file_d${1}_b_def"
+        echo ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "cd tc-command-file-client; sudo bash tc-command-file_d${1}_b_def"
+       fi
+   done
+}
+
+PRE_FILE="latency_def.csv"
+
+##########################
+
+# Here, Please specify the latency files, we intend to use
+# Example - for file_name in latency-20.csv  latency-40.csv  latency-60.csv   latency-80.csv
+
+##########################
+
+for file_name in  latency_def.csv latency-80.csv
+do
+
+    delay_without_trim=$(echo ${file_name}| cut -f 1 -d '.'| sed 's/latency/ /g')
+    delay=`echo ${delay_without_trim} | sed 's/ *$//g'`
+    echo THE VALUE OF DELAY IS $delay AND THE VALUE OF BANDWIDTH IS DEFAULT
+
+    #Step 1: Set latency ith default value for bandwidth
+    LATENCY_FILE=${file_name}
+    PRE_LATENCY_FILE=${PRE_FILE}
+
+    echo sed -i 's/LATENCY_FILE=${PATH_PREFIX}\/'${PRE_LATENCY_FILE}'/LATENCY_FILE=${PATH_PREFIX}\/'${LATENCY_FILE}'/' ../config
+    sed -i 's/LATENCY_FILE=${PATH_PREFIX}\/'${PRE_LATENCY_FILE}'/LATENCY_FILE=${PATH_PREFIX}\/'${LATENCY_FILE}'/' ../config
+
+    PRE_FILE=${file_name}
+
+    echo -e "\e[44mSTEP 1_1: REMOVE TC RULES FROM CLUSTER\e[0m"
+    # Step1_1 : Remove tc rules from cluster 
+     ../02-tc-config/04-remove-bandwidth-latency-matrix-rules.sh
+    sleep 30
+
+
+    #Step 2_1: Apply tc rules on cluster 
+    echo -e "\e[44mSTEP 2_1: APPLY TC RULES ON CLUSTER\e[0m"
+
+    ../02-tc-config/02-apply-bandwidth-latency-matrix.sh
+
+
+    #step 3: Run database on cluster
+    echo -e "\e[44mSTEP 3:RUN DATABASE ON CLUSTER \e[0m"
+
+    ./frag-multiple-nodes-add $DB_NAME $DELAY
+    ./frag-multiple-nodes-remove $DB_NAME $DELAY
+
+done

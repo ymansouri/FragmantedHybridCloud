@@ -1,0 +1,55 @@
+#!/bin/bash
+
+. config
+
+
+if [[ "$3" == "" ]]
+then
+  echo Usage: $0 "LINKS_ID" "<INTERVAL_DISCONNECTION>" "<RESULTS_FOLDER>"
+  exit
+fi
+
+LINKS_REMOVING_SCENARIO=$1
+SLEEP_TIME=${2}
+RESULTS_FOLDER=${3}
+
+echo links:${LINKS_REMOVING_SCENARIO}
+echo results: ${RESULTS_FOLDER}
+
+CURRENT_RESULT_FOLDER=${RESULTS_FOLDER}/link-remove-date
+LATENCY_RES=$(echo ${RESULTS_FOLDER}| cut -f 2 -d '/')
+
+IFS=","
+for link in ${LINKS_REMOVING_SCENARIO}
+do
+
+       LINK_ID="${link// /_}"
+
+       sleep ${SLEEP_TIME}
+      ./frag-parallel-latency-measurment.sh "${LINK_ID}_b"-"${LATENCY_RES}"
+
+      #Removing link
+      echo -e "\e[44mLINK ${link} IS REMOVING\e[0m"
+      link_cut_date=$(${PATH_PREFIX_FOR_EXPERIMENT}/01-wireguard-config/05-mesh-network-links-remove.sh  ${link})
+      echo  ${link_cut_date} >> ${CURRENT_RESULT_FOLDER}
+
+      sleep ${SLEEP_TIME}
+     ./frag-parallel-latency-measurment.sh "${LINK_ID}_a"-"${LATENCY_RES}"
+
+done
+unset IFS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

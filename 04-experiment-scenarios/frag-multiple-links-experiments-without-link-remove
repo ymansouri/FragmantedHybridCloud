@@ -1,0 +1,68 @@
+#!/bin/bash
+
+####################################
+
+# Scenario - 3
+# This scripts runs "densely connected" network to measure the performance of databases.
+
+####################################
+
+. config
+
+LINKS_REMOVING_INTERVAL_TIME=60
+
+function latency_mesh_network_results ()
+{
+
+   RESULTS_FOLDER=$1
+   PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+   ALL_DESTINATIONS=$(./hosts2dests.sh "${PUBLIC_IPS}" "${VM_USERNAME}")
+   IFS=','
+   for des in ${ALL_DESTINATIONS}
+   do
+
+      SSH_HOST=$(echo $des| cut -f 1 -d ':')
+      HOME_DIR=$(echo $des| cut -f 2 -d ':')
+      #echo $SSH_HOST,${HOME_DIR}
+      scp -o StrictHostKeyChecking=no ${des}/*-latency-results/* "${RESULTS_FOLDER}"
+      ssh -o StrictHostKeyChecking=no -i ${SSH_KEY_FILE} ${SSH_HOST}  "sudo rm -r ${HOME_DIR}/*-latency-results/*"
+   done
+   unset
+}
+
+
+MAX_RETRIES=5
+RETRIES=0
+RETRY_DELAY=10
+
+if [[ "$2" == "" ]]
+then
+  echo Usage: $0 "<DB_NAME>" "<DELAY_VALUE>"
+  exit
+fi
+
+# Sample values: mongo, _def
+DB_NAME=$1
+#Sample -80, _def, -20: introducing latency
+delay=$2
+
+
+FLUSHLOAD=lf
+FLUSHLOAD_FOLDER=${RESULTS}/d${delay}_b_def-${DB_NAME}-${FLUSHLOAD}-$(date +"%Y%m%d%H%M%S%N")
+mkdir -p ${FLUSHLOAD_FOLDER}
+time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${FLUSHLOAD} ${FLUSHLOAD_FOLDER}
+
+
+#for WORKLOAD in a b c d  f
+for WORKLOAD in  a b c d e f
+do
+       echo -e "\e[44mworkload" ${WORKLOAD}" is running for LINKS REMOVING\e[0m"
+       RESULTS_FOLDER=${RESULTS}/d${delay}_b_def-${DB_NAME}-${WORKLOAD}-$(date +"%Y%m%d%H%M%S%N")
+       mkdir -p ${RESULTS_FOLDER}
+
+       #STEP_2: RUN WORKLOAD
+       #echo Cluster resizing scenario: ${CLUSTER_DOWNSIZING_SCENARIO} > ${}/scenario
+       time ./frag-db-workload-nodes-add-remove ${DB_NAME} ${WORKER_IP} ${WORKLOAD} ${RESULTS_FOLDER}
+       echo successfully finished
+done
+exit 0

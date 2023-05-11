@@ -1,0 +1,66 @@
+#!/bin/bash
+
+. config 
+
+PUBLIC_IPS=$(cat ${PUBLIC_IPS_FILE})
+echo ${PUBLIC_IPS}
+
+
+: '
+while read connection_links_number
+do
+ 
+    echo row: ${connection_links_number}
+
+done < ${PATH_PREFIX}/mesh_network_link_number.csv
+'
+function get_wg_links_number ()
+{
+   WG_LINKS_NUMBER=" "
+   for ip in ${PUBLIC_IPS}
+   do
+         #echo $ip
+         a=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${ip} "ip a|grep ': wg'|wc -l")
+         #echo ${WG_LINKS_NUMBER}" "$a
+         address_link=$address_link" "$ip:$a
+   done
+   echo $address_link
+}
+
+ADDRESS_WG_LINKS_NUMBER=$(get_wg_links_number)
+echo ${ADDRESS_WG_LINKS_NUMBER}
+
+
+# count vms 
+COUNTER=0
+LINKS_DOWN=0
+
+while read -r connection_links_number
+do
+   COUNTER=$((COUNTER+1))
+   #a=${connection_links_number}
+
+   #echo $a
+   sum=0
+   for link_number in ${connection_links_number}
+   do
+       sum=$(( ${sum}+${link_number} ))
+   done
+
+   VM_IP=$(echo ${PUBLIC_IPS}|cut -f ${COUNTER} -d ' ')
+   #echo vm_ip: ${VM_IP}
+
+   WG_LINKS_NUMBER=$(echo ${ADDRESS_WG_LINKS_NUMBER}| cut -f ${COUNTER} -d ' '|cut -f 2 -d ':')
+
+   #echo wg_link_number: `expr ${WG_LINKS_NUMBER} / 2`
+   echo MESH NETWORK LINKS NUMBER  FOR "${VM_USERNAME}@${VM_IP}" IS  ${WG_LINKS_NUMBER} out of ${sum}
+
+   if ! [[ "${sum}" == "${WG_LINKS_NUMBER}" ]]
+   then
+     LINKS_DOWN=$(( ${LINKS_DOWN} + ${sum} - ${WG_LINKS_NUMBER} ))
+   fi
+
+done <  ${PATH_PREFIX}/mesh_network_link_number.csv
+
+echo ${LINKS_DOWN}
+exit ${LINKS_DOWN}

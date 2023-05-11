@@ -1,0 +1,148 @@
+#!/bin/bash
+
+###################################
+
+# This script is to add and remove node(s) from MONGODB cluster.
+
+###################################
+
+. config
+. CLUSTER-NODES
+
+#how to change replicaset configuration file
+#(a) mongo vm_ip, (b)cfg="the value of rsiniti.js with desirable ips", (c)rs.reconfig(cfg, {force: true});
+#get master of node in mongo cluster
+
+function get_master_ip()
+{
+   for public_ip in  ${PLACE_TO_IP[@]}
+   do
+
+        MASTER_NODE_INDICATION=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${public_ip}   "mongo --eval 'rs.hello()' |  grep \"isWritablePrimary\" |cut  -f 2 -d ':'| tr  ',' ' '|tr -d ' '")
+
+       if [[ ${MASTER_NODE_INDICATION} == "true" ]]
+       then
+           echo  ${public_ip}
+           break
+      fi
+   done
+}
+
+
+MASTER_IP=$(get_master_ip)
+
+# Generate unique id for nodes which are added to the cluster
+function generate_uniq_id ()
+{
+  IDS=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${MASTER_IP}   "mongo --eval 'rs.status()' |  grep \"_id\"|cut -f 2 -d ":"| tr ","  ' '")
+
+  NEW_ID=1
+  for id in $IDS
+  do
+      if [[ ${NEW_ID} == $id  ]]
+      then
+           NEW_ID=$((${NEW_ID} + 1))
+           continue
+      fi
+   done
+   echo ${NEW_ID}
+}
+
+
+# Number of hosts in Mongo cluster
+function hosts_number ()
+{
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${MASTER_IP}   "mongo --eval 'rs.status()' | grep \"writableVotingMembersCount\" | cut -f 2 -d : | tr ',' ' '"
+}
+
+# Remove one node
+function remove_node ()
+{
+  # Potentially do nodetool removenode on the Master
+  PLACE=$1
+  IP=${IPS[$PLACE]}
+  echo Removing ${PLACE} ${IP}
+
+  echo ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${MASTER_IP}   "mongo --eval 'rs.remove( \"$IP:27017\"  )'"
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${MASTER_IP}   "mongo --eval 'rs.remove( \"$IP:27017\"  )'"
+}
+
+# Remove multiple nodes
+function remove_nodes ()
+{
+  TIMEOUT=$1
+  for PLACE in $2
+  do
+    remove_node ${PLACE}
+    sleep ${TIMEOUT}
+  done
+}
+
+# Add one node
+function add_node ()
+{
+  PLACE=$1
+  IP=${IPS[$PLACE]}
+  hn=$(hosts_number)
+  new_id=$(generate_uniq_id)
+  if [[ $hn -lt 7 ]]
+  then
+
+         ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${MASTER_IP}   "mongo --eval 'rs.add( {\"_id\" : ${new_id},  \"host\":\"${IP}:27017\", \"priority\" : 1, \"votes\" : 1 } )'"
+         echo Adding ${PLACE} ${IP}
+  else
+         #Replica set configuration contains 8 voting members, but must be at least 1 and no more than 7 -- Thus we set priority and votes with a value of 0.
+         ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${MASTER_IP}   "mongo --eval 'rs.add( {\"_id\" : ${new_id},  \"host\":\"${IP}:27017\", \"priority\" : 0, \"votes\" : 0 } )'"
+         echo Adding ${PLACE} ${IP}
+
+  fi
+
+}
+
+# Add multiple nodes
+function add_nodes ()
+{
+  TIMEOUT=$1
+  for PLACE in $2
+  do
+    add_node ${PLACE}
+    sleep ${TIMEOUT}
+  done
+}
+
+
+declare -A IPS
+
+IPS=(["MELBOURNE"]="10.0.17.9" ["SYDNEY"]="10.0.17.24" ["CANBERRA"]="10.0.17.23" ["PUNE"]="10.0.17.14" ["SINGAPORE"]="10.0.17.8" ["SEOUL"]="10.0.17.12" ["DUBAI"]="10.0.17.26" ["VIRGINIA"]="10.0.17.22")
+
+# In this setting, PUNE is master node for Mongo
+MASTER_IP=$(get_master_ip)
+echo ${MASTER_IP}
+
+if [[ $# > 0 ]]
+then
+  # Accepting scenario from command line
+  for i in $1
+  do
+    if [[ "${i::1}" == "+" ]]
+    then
+      add_node ${i:1}
+    elif [[ "${i::1}" == "-" ]]
+    then
+      remove_node ${i:1}
+    else
+      echo Sleeping ${i}
+      sleep ${i}
+    fi
+  done
+
+else
+  # Manual usage
+  echo Manual mode
+
+  remove_nodes 2 'SYDNEY CANBERRA PUNE'
+fi
+
+# A sample of input to remove node with delay of 20 second: "-SYDNEY 20 -CANBERRA"
+# A sample of inputto add node with delay of 20 second: "+SYDNEY 20 +CANBERRA"
+

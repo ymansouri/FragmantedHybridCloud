@@ -1,0 +1,188 @@
+#!/bin/bash
+
+. config
+. CLUSTER-NODES
+
+function get_cluster_nodes_places ()
+{
+   PLACE=$1
+   SOUR_IP=${PLACE_TO_PRIVATE_IP[$PLACE]}
+   CLUSTER_NODES_PRIVATE_IP=$(ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli cluster nodes| cut -f 2 -d ' '|cut -f 1 -d ':'")
+
+   CLUSTER_NODE_PLACES=""
+
+   for private_ip in ${PLACE_TO_PRIVATE_IP[@]}
+   do
+      echo ${CLUSTER_NODES_PRIVATE_IP} | grep -q ${private_ip}
+      if [[ $? == 0 ]]
+      then
+           CLUSTER_NODE_PLACES=${CLUSTER_NODE_PLACES}" "${PRIVATE_IP_TO_PLACE[${private_ip}]}
+      fi
+   done
+   echo ${CLUSTER_NODE_PLACES}
+}
+
+# Get random destination
+function get_random_destination_place ()
+{
+  sour_place=$1
+  #all_places=$(get_cluster_nodes_places "${sour_place}")
+  all_places=$(_get_cluster_nodes_places)
+  for place in  ${all_places}
+   do
+    if [[ ${sour_place} == ${place} ]]
+    then
+      continue
+    else
+      dest_places=$place
+      break
+    fi
+  done
+  echo ${dest_places}
+}
+
+
+
+# Get source id
+function get_source_id ()
+{
+  PLACE=$1
+  SOUR_IP=${PLACE_TO_IP[$PLACE]}
+  PRIVATE_SOUR_IP=${PLACE_TO_PRIVATE_IP[$PLACE]}
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli cluster nodes|cut -f 1-2 -d ' '|grep ${PRIVATE_SOUR_IP}|cut -f 1 -d ' '"
+}
+
+#Get destination id
+function get_destination_id ()
+{
+  DEST_PLACE=$1
+  PRIVATE_DEST_IP=${PLACE_TO_PRIVATE_IP[${DEST_PLACE}]}
+  DEST_IP=${PLACE_TO_IP[${DEST_PLACE}]}
+
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${DEST_IP} "redis-cli cluster nodes|grep ${PRIVATE_DEST_IP}| cut -f 1 -d ' '"
+}
+
+# Get slot numbers
+function get_slots_number ()
+{
+   #redis-cli --cluster info 10.0.17.16:6379 | grep -e "10.0.17.16"| cut -f 2 -d '|'| sed 's/ //'| cut -f 1 -d ' '
+   PLACE=$1
+   SOUR_IP=${PLACE_TO_IP[$PLACE]}
+   PRIVATE_SOUR_IP=${PLACE_TO_PRIVATE_IP[$PLACE]}
+   ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli --cluster info ${PRIVATE_SOUR_IP}:6379|grep -e \"${PRIVATE_SOUR_IP}\"| cut -f 2 -d '|'| sed 's/ //'| cut -f 1 -d ' '"
+}
+
+
+
+
+# Remove one node
+function remove_node ()
+{
+  # Potentially do nodetool removenode on the Master
+  PLACE=$1
+  SOUR_IP=${PLACE_TO_IP[$PLACE]}
+  SOUR_ID=$(get_source_id ${PLACE})
+  PRIVATE_SOUR_IP=${PLACE_TO_PRIVATE_IP[$PLACE]}
+
+
+  DEST_PLACE=$(get_random_destination_place $PLACE)
+  DEST_IP=${PLACE_TO_IP[${DEST_PLACE}]}
+  PRIVATE_DEST_IP=${PLACE_TO_PRIVATE_IP[$DEST_PLACE]}
+  DEST_ID=$(get_destination_id ${DEST_PLACE})
+  SLOTS_NUMBER=$(get_slots_number ${PLACE})
+
+  echo $PLACE " " ${SOUR_IP} " " ${SOUR_ID} " " ${DEST_PLACE}  "  " ${DEST_IP}   "  " ${DEST_ID} " " ${SLOTS_NUMBER}
+
+  echo Removing ${PLACE} ${PRIVATE_SOUR_IP}
+  # Reshard the cluster
+
+  echo ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli --cluster reshard ${PRIVATE_DEST_IP}:6379  --cluster-from ${SOUR_ID}  --cluster-to ${DEST_ID} --cluster-slots ${SLOTS_NUMBER}   --cluster-yes"
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli --cluster reshard ${PRIVATE_DEST_IP}:6379  --cluster-from ${SOUR_ID}  --cluster-to ${DEST_ID} --cluster-slots ${SLOTS_NUMBER}   --cluster-yes"
+
+  # Remove  node from the cluster
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli --cluster del-node ${PRIVATE_SOUR_IP}:6379 ${SOUR_ID}"
+
+  #Rebalance slots across all  remaining nodes in the cluster
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${DEST_IP}  "redis-cli --cluster rebalance ${PRIVATE_DEST_IP}:6379"
+
+}
+# Remove multiple nodes
+function remove_nodes ()
+{
+  TIMEOUT=$1
+  for PLACE in $2
+  do
+    remove_node ${PLACE}
+    sleep ${TIMEOUT}
+  done
+}
+
+# Add one node
+function add_node ()
+{
+  # Potentially do nodetool removenode on the Master
+  PLACE=$1
+  SOUR_IP=${PLACE_TO_IP[$PLACE]}
+  SOUR_ID=$(get_source_id ${PLACE})
+  PRIVATE_SOUR_IP=${PLACE_TO_PRIVATE_IP[$PLACE]}
+
+
+  DEST_PLACE=$(get_random_destination_place $PLACE)
+  DEST_IP=${PLACE_TO_IP[$DEST_PLACE]}
+  PRIVATE_DEST_IP=${PLACE_TO_PRIVATE_IP[$DEST_PLACE]}
+  DEST_ID=$(get_destination_id ${DEST_PLACE})
+  SLOTS_NUMBER=$(get_slots_number ${DEST_PLACE})
+
+  echo $PLACE " " ${SOUR_IP} " " ${SOUR_ID} " " ${DEST_PLACE}  "  " ${DEST_IP}   "  " ${DEST_ID} " " ${SLOTS_NUMBER}
+
+  echo Adding ${PLACE} ${SOUR_IP}
+  # Reshard the cluster
+  # Add  node to  the cluster
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli --cluster add-node ${PRIVATE_SOUR_IP}:6379 ${PRIVATE_DEST_IP}:6379"
+
+  sleep 10
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP} "redis-cli --cluster reshard ${PRIVATE_SOUR_IP}:6379  --cluster-from ${DEST_ID}  --cluster-to ${SOUR_ID} --cluster-slots 1000  --cluster-yes" 
+  sleep 10
+  #Rebalance slots across all  remaining nodes in the cluster
+  ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${SOUR_IP}  "redis-cli --cluster rebalance ${PRIVATE_SOUR_IP}:6379"
+
+}
+
+# Add multiple nodes
+function add_nodes ()
+{
+  TIMEOUT=$1
+  for PLACE in $2
+  do
+    add_node ${PLACE}
+    sleep ${TIMEOUT}
+  done
+}
+
+if [[ $# > 0 ]]
+then
+  # Accepting scenario from command line
+  for i in $1
+  do
+    if [[ "${i::1}" == "+" ]]
+    then
+      add_node ${i:1}
+    elif [[ "${i::1}" == "-" ]]
+    then
+      remove_node ${i:1}
+    else
+      echo Sleeping ${i}
+      sleep ${i}
+    fi
+  done
+
+else
+  # Manual usage
+  echo Manual mode
+
+  remove_nodes 2 'SYDNEY CANBERRA PUNE'
+fi
+
+# Sample for run -- number is delay in second
+#remove_node "-SYDNEY 20 -PUNE"
+#add_nodes  '+SYDNEY 20 +CANBERRA 40 +PUNE'

@@ -1,0 +1,99 @@
+#!/bin/bash
+
+
+. config
+
+echo "Experiments are starting with default latency and variable bandwidth"
+
+
+
+function apply_rules_on_cluster_for_worker()
+{
+   IFS=,$'\n' read -d '' -r -a ip_arr < ${PUBLIC_IPS_FILE}
+   ip_arr=(${ip_arr})
+
+   echo ip_arr: ${ip_arr[@]}
+
+   for IP in "${ip_arr[@]}";
+   do 
+       if [[ $IP != ${WORKER_IP_IN_CLUSTER} ]]
+       then
+        echo ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "cd tc-command-file-client; sudo bash tc-command-file_d_def_b${1}"
+        ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${IP} "cd tc-command-file-client; sudo bash tc-command-file_d_def_b${1}"
+       fi
+   done
+}
+
+#apply_rules_on_cluster_for_worker "_def"
+
+
+
+PRE_FILE="bandwidth_default.csv"
+
+#for file_name in latency-20.csv  latency-40.csv  latency-60.csv   latency-80.csv
+for file_name in bandwidth-20.csv bandwidth-40.csv  bandwidth-60.csv bandwidth-80.csv
+do
+
+    bandwidth_without_trim=$(echo ${file_name}| cut -f 1 -d '.'| sed 's/bandwidth/ /g')
+    bandwidth=`echo ${bandwidth_without_trim} | sed 's/ *$//g'`
+    echo THE VALUE OF bandwidth IS $bandwidth AND THE VALUE OF BANDWIDTH IS DEFAULT
+
+
+
+    #Step 1: set latency ith default value for bandwidth
+    BANDWIDTH_FILE=${file_name}
+    PRE_BANDWIDTH_FILE=${PRE_FILE}
+
+    #echo pl:${PRE_LATENCY_FILE}
+
+    echo sed -i 's/BANDWIDTH_FILE=${PATH_PREFIX}\/'${PRE_BANDWIDTH_FILE}'/BANDWIDTH_FILE=${PATH_PREFIX}\/'${BANDWIDTH_FILE}'/' ../config
+    sed -i 's/BANDWIDTH_FILE=${PATH_PREFIX}\/'${PRE_BANDWIDTH_FILE}'/BANDWIDTH_FILE=${PATH_PREFIX}\/'${BANDWIDTH_FILE}'/' ../config
+
+    PRE_FILE=${file_name}
+
+    echo -e "\e[44mSTEP 1_1: REMOVE TC RULES FROM CLUSTER\e[0m"
+    # Step1_1 : remove tc rules from cluster 
+     ../02-tc-config/04-remove-bandwidth-latency-matrix-rules.sh
+    sleep 30
+
+    # step 1_2: remove tc rules from worker 
+    echo -e "\e[44mSTEP 1_2: REMOVE RC RULES FROM WORKER\e[0m"
+    ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${WORKER_IP} "sudo tcdel ${NETWORK_INTERFACE} -a" 
+
+
+    #Step 2_1: apply tc rules on cluster 
+    echo -e "\e[44mSTEP 2_1: APPLY TC RULES ON CLUSTER\e[0m"
+
+    ../02-tc-config/02-apply-bandwidth-latency-matrix.sh
+
+    #step 2_2: apply tc rules on worker
+    echo -e "\e[44mSTEP 2_2: APPLY TC RULES ON  WORKER\e[0m"
+    ssh -o StrictHostKeyChecking=no ${VM_USERNAME}@${WORKER_IP} "cd tc-command-file-client; sudo bash tc-command-file_d_def_b${bandwidth}" 
+
+    #Step 2_3: apply tc rules on cluster to adjust upload and download rules which are not included   in the rules in step 2_2
+    echo -e "\e[44mSTEP 2_2: APPLY TC RULES ON  WORKER TO ADJUST ULOAPD AND DOWNLOAD RULES NOT INCLUDED IN THE RULES IN STEP2_2\e[0m"
+    apply_rules_on_cluster_for_worker "${bandwidth}"
+
+
+    #step 3: run database on cluster
+    echo -e "\e[44mSTEP 3:RUN DATABASE ON CLUSTER \e[0m"
+    #sleep 150
+    time ./frag-db-workload-singlevm2hybridcloud.sh redis ${WORKER_IP}  worker2fragcloud-d_def_b${bandwidth}
+
+done
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
