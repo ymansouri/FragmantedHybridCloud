@@ -1,0 +1,46 @@
+#declare -A IPS
+#declare -A PRIVATE_IPS
+
+##########################################
+
+# Please specify IP for each datacentre 
+
+#########################################
+
+
+
+#IPS=(["MELBOURNE"]="10.33.184.58" ["SYDNEY"]="10.33.184.97" ["CANBERRA"]="10.33.184.52" ["PUNE"]="10.33.184.111" ["SINGAPORE"]="10.33.184.43" ["SEOUL"]="10.33.184.29" ["DUBAI"]="10.33.184.21" ["VIRGINIA"]="10.33.184.116")
+#PRIVATE_IPS=(["MELBOURNE"]="10.0.17.5" ["SYDNEY"]="10.0.17.3" ["CANBERRA"]="10.0.17.6" ["PUNE"]="10.0.17.21" ["SINGAPORE"]="10.0.17.16" ["SEOUL"]="10.0.17.20" ["DUBAI"]="10.0.17.18" ["VIRGINIA"]="10.0.17.7")
+
+declare -A PLACE_TO_IP
+declare -A PLACE_TO_PRIVATE_IP
+declare -A IP_TO_PLACE
+declare -A PRIVATE_IP_TO_PLACE
+
+#**************** Specify public ip for each VM *******************
+#PLACE_TO_IP=(["MELBOURNE"]="10.33.184.57" ["SYDNEY"]="10.33.184.66" ["CANBERRA"]="10.33.184.40" ["PUNE"]="10.33.184.25" ["SINGAPORE"]="10.33.184.54" ["SEOUL"]="10.33.184.55" ["DUBAI"]="10.33.184.46" ["VIRGINIA"]="10.33.184.38")
+
+#**************** Specify private ip for each VM (Scenario 1 and 2) ******************
+#PLACE_TO_PRIVATE_IP=(["MELBOURNE"]="10.0.17.9" ["SYDNEY"]="10.0.17.24" ["CANBERRA"]="10.0.17.23" ["PUNE"]="10.0.17.14" ["SINGAPORE"]="10.0.17.8" ["SEOUL"]="10.0.17.12" ["DUBAI"]="10.0.17.26" ["VIRGINIA"]="10.0.17.22")
+
+#**************** Specify private ip for each VM (Scenario 3) ******************
+#PLACE_TO_PRIVATE_IP=(["MELBOURNE"]="10.0.0.1" ["SYDNEY"]="10.0.0.2" ["CANBERRA"]="10.0.0.3" ["PUNE"]="10.0.0.4" ["SINGAPORE"]="10.0.0.5" ["SEOUL"]="10.0.0.6" ["DUBAI"]="10.0.0.7" ["VIRGINIA"]="10.0.0.8")
+
+#Prepare reverse mapping from ip to place
+
+for PLACE in "${!PLACE_TO_IP[@]}"
+do
+  IP=${PLACE_TO_IP[${PLACE}]}
+  IP_TO_PLACE[${IP}]=${PLACE}
+done
+
+for PLACE in "${!PLACE_TO_PRIVATE_IP[@]}"
+do
+  IP=${PLACE_TO_PRIVATE_IP[${PLACE}]}
+  PRIVATE_IP_TO_PLACE[${IP}]=${PLACE}
+done
+
+# Initialise list of actual nodes in cluster
+# get_cluster_nodes () {
+# CURRENT_NODES[]=...
+#}
