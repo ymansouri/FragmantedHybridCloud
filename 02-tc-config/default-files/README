@@ -1,0 +1,5 @@
+#For network based on ens3 interface, we prepare latency matrix in top-triangular matrix or down tringular matrix. In terms of bandwidth, we prepare a diagonal matrix in which the 
+#value of diagonal is zero and other values are symetric to diagonal of matrix.  
+
+
+ 
