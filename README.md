@@ -23,8 +23,7 @@ Part-1 - Implementation of fragmented hybrid cloud framework
 
 ### Editing variable files and create symlink.
 
-1. In home folder, please change the variables mentioned in **config** file. Create symlink for **config** file in each folder. 
-2. Variables to change:
+1. Variables to change:
     * VM_USERNAME
     * SSH_KEY_FILE
     * IP_FOLDER
@@ -43,9 +42,10 @@ Part-1 - Implementation of fragmented hybrid cloud framework
     * WORKER_IP_IN_CLUSTER
     * RESULTS
     * PATH_PREFIX_FOR_EXPERIMENT
-4. For example:
+2. In home folder, please change the variables mentioned in **config** file. Create symlink for **config** file in each folder. For example:
     ```sh
-    ln –s FragmantedHybridCloud/config 01-wireguard-config/config 
+    cd FragmantedHybridCloud/01-wireguard-config
+    ln –s FragmantedHybridCloud/config config 
     ```
 2. Edit **CLUSTER-NODES** file and create symlink in each folder.
 
