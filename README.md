@@ -47,6 +47,7 @@ Part-1 - Implementation of fragmented hybrid cloud framework
     ln –s ~/FragmantedHybridCloud/config 01-wireguard-config/ 
     ```
 2. Edit **CLUSTER-NODES** file and create symlink in each folder (follow Step-2).
+3. Give executable permissions to all the files and folders before running. 
 
 ### Mesh network creation
 1. Installation of wireguard on all VMs and mesh network creation will be done by running command:
