@@ -44,8 +44,7 @@ Part-1 - Implementation of fragmented hybrid cloud framework
     * PATH_PREFIX_FOR_EXPERIMENT
 2. In home folder, please change the variables mentioned in **config** file. Create symlink for **config** file in each folder. For example:
     ```sh
-    cd ~/FragmantedHybridCloud/01-wireguard-config
-    ln –s ~/FragmantedHybridCloud/config config 
+    ln –s ~/FragmantedHybridCloud/config 01-wireguard-config/ 
     ```
 2. Edit **CLUSTER-NODES** file and create symlink in each folder (follow Step-2).
 
